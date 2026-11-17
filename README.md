@@ -6,13 +6,13 @@ memory-canary is a small TypeScript test kit for agents that keep memory per use
 
 ## What it checks, and what it does not
 
-It is a regression test for one class of failure: memory written in one session reaching another session's context, directly or through the agent's own write path. I wrote it because the session filter that stops this is usually one `where` clause, and a refactor can drop it without a single other test going red.
+It is a regression test for one class of failure: memory written in one session reaching another session's context, directly or through the agent's own write path. I wrote it because the session filter that stops this is often one `where` clause, and a refactor can drop it without a single other test going red.
 
-It is not a benchmark and not proof that your memory is safe. Three cases with fixed synthetic data cannot cover prompt injection in general, poisoning inside a single user's own session, tool output, shared documents, or a model that has the canary in its weights. Academic benchmarks with hundreds of cases measure much more than this. What this kit does is cheaper and narrower: it sits in CI and goes red the day isolation breaks.
+It is not a benchmark and not proof that your memory is safe. Three cases with fixed synthetic data cannot cover prompt injection in general, poisoning that stays inside one user's own session (beyond the write-back check in `laundered-answer`), tool output, shared documents, or a model that has the canary in its weights. Academic benchmarks with hundreds of cases measure much more than this. What this kit does is cheaper and narrower: it sits in CI and goes red if isolation breaks in one of these three ways.
 
 Every case guards against passing for the wrong reason. In order, it asserts:
 
-1. **Positive control.** The attacker's own session gets its canary back. If your store dropped it, or retrieval cannot find it, the case fails here instead of reporting the victim as safe.
+1. **Positive control.** The session the canary was planted in gets it back. If your store dropped it, or retrieval cannot find it, the case fails here instead of reporting the victim as safe.
 2. **The victim's context is not empty.** The case seeds the victim with a memory of its own and requires it back. An empty retrieval fails; it never counts as isolation.
 3. **The canary is absent** from the victim's context, by exact string and after normalising case, spaces, dashes, dots and brackets, so `555-0182`, `555 0182` and `(555) 0182` are the same leak.
 
@@ -153,7 +153,7 @@ Inputs: `adapter` (required), `only` (comma-separated case ids), `working-direct
 npm run pgvector:up        # docker compose, port 54329
 npm run example:pgvector   # safe store passes; leaky and launder variants fail as expected
 npm run pgvector:down
-MEMORY_CANARY_LEAK=cross-session npx memory-canary dist/examples/pgvector/adapter.js
+MEMORY_CANARY_LEAK=cross-session node dist/src/cli.js dist/examples/pgvector/adapter.js
 ```
 
 Set `MEMORY_CANARY_PG_URL` to use another database.
