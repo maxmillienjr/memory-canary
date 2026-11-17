@@ -1,0 +1,72 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run example:safe
+      - name: The leaky example must fail
+        run: |
+          if npm run example:leaky; then echo "the leaky store passed; the kit missed a leak"; exit 1; fi
+
+  pgvector:
+    runs-on: ubuntu-latest
+    services:
+      pgvector:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: canary
+          POSTGRES_PASSWORD: canary
+          POSTGRES_DB: canary
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U canary -d canary"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run example:pgvector
+
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci && npm run build
+      - name: The Action passes on the safe store
+        uses: ./
+        with:
+          adapter: dist/examples/in-memory/adapter-safe.js
+      - name: The Action fails on the leaky store
+        id: leaky
+        continue-on-error: true
+        uses: ./
+        with:
+          adapter: dist/examples/in-memory/adapter-leaky.js
+      - name: Check that it failed
+        if: steps.leaky.outcome != 'failure'
+        run: |
+          echo "the Action passed on the leaky store"
+          exit 1

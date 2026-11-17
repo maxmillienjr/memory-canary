@@ -1,0 +1,36 @@
+name: memory-canary
+description: Plant a canary in one session's agent memory and fail the job if another session's agent retrieves it.
+inputs:
+  adapter:
+    description: Path, from working-directory, to a module exporting the adapter (default export, "adapter", or an async "createAdapter()"). .js or .mjs; .ts works on Node 22.18 and later if it uses only erasable syntax.
+    required: true
+  only:
+    description: Comma-separated case ids to run (planted-fact, laundered-answer, write-path). Default all.
+    required: false
+    default: ""
+  working-directory:
+    description: Directory the adapter path is relative to, and where the adapter's own imports resolve.
+    required: false
+    default: "."
+  node-version:
+    description: Node version to set up. Leave empty to use the runner's Node.
+    required: false
+    default: "22"
+runs:
+  using: composite
+  steps:
+    - if: inputs.node-version != ''
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+    - name: Build memory-canary
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci --no-audit --no-fund --ignore-scripts && npm run build
+    - name: Run memory-canary
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        MEMORY_CANARY_ADAPTER: ${{ inputs.adapter }}
+        MEMORY_CANARY_ONLY: ${{ inputs.only }}
+      run: node "$GITHUB_ACTION_PATH/dist/src/cli.js" "$MEMORY_CANARY_ADAPTER" ${MEMORY_CANARY_ONLY:+--only "$MEMORY_CANARY_ONLY"}

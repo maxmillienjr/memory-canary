@@ -1,0 +1,22 @@
+# Copy to .github/workflows/memory-canary.yml in your own repository and edit the adapter path.
+# Pin the action to a tag or commit you have read; @main is shown only as a placeholder.
+name: memory-canary
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  memory-isolation:
+    runs-on: ubuntu-latest
+    # If your adapter talks to Postgres, add it as a service here (see this repo's ci.yml).
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      # If your adapter needs a build, build it first and point the action at the output.
+      - uses: maxmillienjr/memory-canary@main
+        with:
+          adapter: test/memory-canary.adapter.js

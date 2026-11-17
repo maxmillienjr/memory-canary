@@ -1,0 +1,45 @@
+{
+  "name": "memory-canary",
+  "version": "0.1.0",
+  "description": "A regression test for agent memory isolation: plant a canary in one session's memory and fail the build if another session's agent retrieves it.",
+  "license": "MIT",
+  "author": "Max Millien",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "bin": {
+    "memory-canary": "./dist/src/cli.js"
+  },
+  "files": [
+    "dist/src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "example:safe": "npm run build && node dist/src/cli.js dist/examples/in-memory/adapter-safe.js",
+    "example:leaky": "npm run build && node dist/src/cli.js dist/examples/in-memory/adapter-leaky.js",
+    "example:launder": "npm run build && node dist/src/cli.js dist/examples/in-memory/adapter-launder.js",
+    "example:test": "npm run build && node --test dist/examples/in-memory/*.test.js",
+    "example:test:leaky": "npm run build && MEMORY_CANARY_LEAK=cross-session node --test dist/examples/in-memory/*.test.js",
+    "pgvector:up": "docker compose -f examples/pgvector/docker-compose.yml up -d --wait",
+    "pgvector:down": "docker compose -f examples/pgvector/docker-compose.yml down -v",
+    "example:pgvector": "npm run build && node --test dist/examples/pgvector/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "@types/pg": "^8.15.0",
+    "pg": "^8.16.0",
+    "typescript": "^5.9.0"
+  }
+}
